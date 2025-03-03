@@ -41,6 +41,7 @@ pub async fn ping(
 ) -> Result<(String, String), IpAddressLookupError> {
     let ping_cmd = Command::new("ping")
         .args(&["-c1", "-q", "-4", &ip_address])
+        .stderr(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
         .map_err(|_| IpAddressLookupError::new(&ip_address, "failed to spawn ping command"))?;
@@ -71,7 +72,7 @@ pub async fn ping(
                 .next()
                 .expect("no output was produced from nslookup command")
                 .map_err(|x| IpAddressLookupError::new(&ip_address, &x.to_string()))?;
-            return Result::Ok((p, ip_address.to_owned()));
+            return Result::Ok((extract_host(&p).unwrap().to_owned(), ip_address.to_owned()));
         } else {
             return Result::Ok((ip_address.to_owned(), ip_address.to_owned()));
         }
@@ -81,4 +82,9 @@ pub async fn ping(
             "unknow error executing ping",
         ));
     }
+}
+
+fn extract_host(nslookup_op: &String) -> Option<&str> {
+    let words: Vec<&str> = nslookup_op.split_whitespace().collect();
+    words.last().map(|v| &**v)
 }
